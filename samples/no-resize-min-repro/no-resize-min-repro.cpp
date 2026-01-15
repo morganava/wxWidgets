@@ -97,29 +97,42 @@ public:
         }
 
         this->Bind(wxEVT_SIZE, [=, this](wxSizeEvent& evt) {
+
             const auto size = evt.GetSize();
-            const auto width = size.GetWidth();
 
-            wxString text;
-            wxSize extent;
-            std::tie(text, extent) =
-                get_wrapped_string_size(*this, this->label, this->line_buffer, width);
+            // only do wrapping logic if the new size is different
+            // from our previous size
+            if (this->previous_size != size) {
+                this->previous_size = size;
+                const auto width = size.GetWidth();
 
-            this->SetMinSize(wxSize(-1, extent.GetHeight()));
-            static_text->SetLabel(text);
+                wxString text;
+                wxSize extent;
+                std::tie(text, extent) =
+                    get_wrapped_string_size(*this, this->label, this->line_buffer, width);
 
-            this->Layout();
-            evt.Skip();
+                static_text->SetLabel(text);
+
+                this->SetMinSize(wxSize(-1, extent.GetHeight()));
+
+                // force parent to re-layout if we need more vertical space
+                if (extent.GetHeight() > size.GetHeight()) {
+                    this->PostSizeEventToParent();
+                }
+
+                evt.Skip();
+            }
         });
     }
 
     wxSize DoGetBestSize() const override {
-        return wxSize(1, 1);
+        return wxDefaultSize;
     }
 
 private:
     const wxString label;
     std::vector<wxString> line_buffer;
+    wxSize previous_size;
 };
 
 class MainFrame: public wxFrame {
